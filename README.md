@@ -10,3 +10,7 @@ Nothing is funnier than knowing the enemy team just got a "NoGoldForYou has disc
 
 # Demo
 ![demo](https://github.com/data-diddler/gold-denier-cs/blob/main/demo.PNG?raw=true)
+
+# Troubleshooting
+1. make sure you game is on your primary monitor
+2. this is only setup to work on 1920x1080 res (sorry wide bois)
