@@ -1,0 +1,314 @@
+﻿@page "/"
+
+@if (error != "")
+{
+    <h2 class="content error-blink">Error: @error</h2>
+    <button class="btn btn-primary" @onclick="ClearError">Ignore</button>
+} else {
+    <div class="content">
+        <h2>Enabled:</h2>
+        <label class="switch">
+            <input type="checkbox" @onclick="Toggle">
+            <span class="slider round"></span>
+        </label>
+    </div>
+
+    <div class="content">
+        <h2>Mode: @mode</h2>
+        <label class="switch">
+            <input type="checkbox" @onclick="SwitchMode">
+            <span class="slider round"></span>
+        </label>
+    </div>
+
+    <div class="content">
+        <h2>Enemy Color:</h2>
+        @if (!activeEnemyColor.IsEmpty)
+        {
+            <select class="color-select" value="@activeEnemyColor" @onchange="EnemyColorChanged" style="@ConvertColor(activeEnemyColor)">
+                @foreach (var color in configurableColors)
+                {
+                    <option class="enemy-color-selection-item" value="@color.Key" style="@ConvertColor(color.Value)"></option>
+                }
+            </select>
+        }
+    </div>
+
+    @if (enabled)
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Left</th>
+                    <th>Right</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (devMode)
+                {
+                    <tr>
+                        <td>Active Pixel: @activePointLeft</td>
+                        <td>Active Pixel: @activePointRight</td>
+                    </tr>
+                    <tr>
+                        <td>Pixels Match: @matchesLeft</td>
+                        <td>Pixels Match: @matchesRight</td>
+                    </tr>
+                }
+                <tr>
+                    <td style="@htmlDisplayColorLeft"></td>
+                    <td style="@htmlDisplayColorRight"></td>
+                </tr>
+            </tbody>
+        </table>
+    }
+
+    <footer>
+        @if (numDenials == 1) {
+            <h2 class="footer-content">You have denied @numDenials.ToString() match.</h2>
+        } else {
+            <h2 class="footer-content">You have denied @numDenials.ToString() matches.</h2>
+        }
+    </footer>
+}
+
+@code {
+    // In game color options
+    private Dictionary<Int32, Color> configurableColors = new Dictionary<Int32, Color>(){
+        { 0, Color.FromArgb(255, 217, 48, 71) },
+        { 1, Color.FromArgb(255, 255, 231, 62) },
+        { 2, Color.FromArgb(255, 255, 197, 25) },
+        { 3, Color.FromArgb(255, 229, 159, 1) },
+        { 4, Color.FromArgb(255, 254, 96, 0) },
+        { 5, Color.FromArgb(255, 0, 150, 255) },
+        { 6, Color.FromArgb(255, 85, 179, 233) },
+        { 7, Color.FromArgb(255, 0, 114, 177) },
+        { 8, Color.FromArgb(255, 0, 89, 181) },
+        { 9, Color.FromArgb(255, 220, 51, 30) },
+        { 10, Color.FromArgb(255, 170, 68, 152) },
+        { 11, Color.FromArgb(255, 220, 37, 127) },
+        { 12, Color.FromArgb(255, 0, 170, 123) },
+        { 13, Color.FromArgb(255, 0, 217, 71) },
+        { 14, Color.FromArgb(255, 68, 186, 152) },
+        { 15, Color.FromArgb(255, 16, 118, 50) },
+        { 16, Color.FromArgb(255, 120, 35, 242) },
+        { 17, Color.FromArgb(255, 99, 99, 255) },
+        { 18, Color.FromArgb(255, 92, 58, 155) },
+        { 19, Color.FromArgb(255, 102, 8, 190) }
+    };
+
+    // Threshold at which color difference is determined
+    private int colorThreshold = 2;
+
+    private int delayAmount = 3000;
+
+    // HTML display colors as hex string
+    private string htmlDisplayColorRight = "";
+    private string htmlDisplayColorLeft = "";
+    private int numDenials = 0;
+
+    // Scanned pixel color
+    private Color pixelColorRight = new Color();
+    private Color pixelColorLeft = new Color();
+
+    // Enemy pixel color
+    private Color activeEnemyColor = new Color();
+
+    // Set to true to see values listed in UI
+    private bool devMode = false;
+
+    // Common runtime items
+    private bool enabled = false;
+    private bool matchesRight = false;
+    private bool matchesLeft = false;
+    private string error = "";
+
+    // Currently active mode
+    private string mode = "2v2s";
+
+    // Position in X,Y of the last stock in 1v1s
+    private Point oneVOneLastPointRight = new Point(1121, 79);
+    // Position in X,Y of the last stock in 2v2s
+    private Point twoVTwoLastPointRight = new Point(1198, 79);
+
+    // Position in X,Y of the last stock in 1v1s
+    private Point oneVOneLastPointLeft = new Point(797, 80);
+    // Position in X,Y of the last stock in 2v2s
+    private Point twoVTwoLastPointLeft = new Point(721, 80);
+
+    // Active points for each side
+    private Point activePointRight = new Point();
+    private Point activePointLeft = new Point();
+
+    protected override void OnInitialized()
+    {
+        // Active enemy color, default to red
+        activeEnemyColor = configurableColors[0];
+        // Default to 2v2s
+        activePointRight = twoVTwoLastPointRight;
+        activePointLeft = twoVTwoLastPointLeft;
+    }
+
+    // Switches 2v2s vs 1v1s
+    private async void SwitchMode()
+    {
+        if (mode == "1v1s") {
+            mode = "2v2s";
+            activePointRight = twoVTwoLastPointRight;
+            activePointLeft = twoVTwoLastPointLeft;
+            await Task.Yield();
+            await InvokeAsync(StateHasChanged);
+        } else {
+            mode = "1v1s";
+            activePointRight = oneVOneLastPointRight;
+            activePointLeft = oneVOneLastPointLeft;
+            await Task.Yield();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // User has changed the enemy team color
+    private async void EnemyColorChanged(ChangeEventArgs e)
+    {
+        activeEnemyColor = configurableColors[int.Parse(e.Value.ToString())];
+        await Task.Yield();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // Clear any present errors
+    private void ClearError()
+    {
+        error = "";
+    }
+
+    // Toggle on/off
+    private void Toggle()
+    {
+        if (!enabled)
+        {
+            StartDenial();
+        } else {
+            StopDenial();
+        }
+    }
+
+    // Start denying gold
+    private async void StartDenial()
+    {
+        enabled = true;
+        await Task.Yield();
+        await InvokeAsync(StateHasChanged);
+        GetDenied();
+    }
+
+    // Stop denying gold
+    private async void StopDenial() {
+        enabled = false;
+        await Task.Yield();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void CheckPixels() {
+        // Pixel color checking
+        pixelColorRight = GetPixel(activePointRight);
+        pixelColorLeft = GetPixel(activePointLeft);
+
+        // Pixel threshold checking
+        matchesRight = CompareWithThreshold(pixelColorRight, activeEnemyColor);
+        matchesLeft = CompareWithThreshold(pixelColorLeft, activeEnemyColor);
+
+        // Color display decomposition
+        htmlDisplayColorRight = ConvertColor(pixelColorRight);
+        htmlDisplayColorLeft = ConvertColor(pixelColorLeft);
+    }
+
+    // Main logic loop
+    private async void GetDenied()
+    {
+        while (enabled == true)
+        {
+            CheckPixels();
+            // Let the UI breathe
+            await Task.Yield();
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(1);
+
+            if (matchesRight || matchesLeft)
+            {
+                await Task.Delay(delayAmount);
+                CheckPixels();
+                await Task.Yield();
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(1);
+                if (matchesRight || matchesLeft)
+                {
+                    try
+                    {
+                        foreach (Process process in Process.GetProcessesByName("MultiVersus-Win64-Shipping"))
+                        {
+                            process.CloseMainWindow();
+                            System.Threading.Thread.Sleep(500);
+                            process.Kill();
+                            numDenials += 1;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        error = e.ToString();
+                        enabled = false;
+                        await Task.Yield();
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+            }
+        } 
+    }
+
+    private bool CompareWithThreshold(Color currentColor, Color targetColor)
+    {
+        var currentColorUpperR = currentColor.R + colorThreshold;
+        var currentColorLowerR = currentColor.R - colorThreshold;
+
+        var currentColorUpperG = currentColor.G + colorThreshold;
+        var currentColorLowerG = currentColor.G - colorThreshold;
+
+        var currentColorUpperB = currentColor.B + colorThreshold;
+        var currentColorLowerB = currentColor.B - colorThreshold;
+
+        return ( 
+            (currentColorUpperR > targetColor.R && currentColorLowerR < targetColor.R) && 
+            (currentColorUpperG > targetColor.G && currentColorLowerG < targetColor.G) &&
+            (currentColorUpperB > targetColor.B && currentColorLowerB < targetColor.B)
+        );
+    }
+
+    // Get pixel color at given coordinates
+    private Color GetPixel(Point position)
+    {
+        try {
+            using (var bitmap = new Bitmap(1, 1))
+            {
+                using (var graphics = Graphics.FromImage(bitmap))
+                {
+                    graphics.CopyFromScreen(position, new Point(0, 0), new Size(1, 1));
+                }
+                return bitmap.GetPixel(0, 0);
+            }
+        }
+        catch (Exception e)
+        {
+            error = e.ToString();
+            enabled = false;
+            Task.Yield();
+            InvokeAsync(StateHasChanged);
+            return new Color();
+        }
+        
+    }
+
+    // Convert a Color into an HTML hex string
+    private static string ConvertColor(Color target)
+    {
+        return "background-color: " + ColorTranslator.ToHtml(target) + ";";
+    }
+}
