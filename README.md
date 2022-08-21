@@ -6,3 +6,7 @@ This application allows you to automatically deny gold at the end of your MultiV
 
 # But Why?
 Nothing is funnier than knowing the enemy team just got a "NoGoldForYou has disconnected" notification. Also this is for educational purposes only :-)
+
+
+# Demo
+![demo](https://github.com/data-diddler/gold-denier-cs/blob/main/demo.PNG?raw=true)
