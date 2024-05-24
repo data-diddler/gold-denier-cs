@@ -9,6 +9,8 @@ Nothing is funnier than knowing the enemy team just got a "NoGoldForYou has disc
 
 
 # Demo
+[Video Demo](https://www.youtube.com/watch?v=nx3pPcOPJlo)
+
 ![demo](https://github.com/data-diddler/gold-denier-cs/blob/main/demo.PNG?raw=true)
 
 # Troubleshooting
